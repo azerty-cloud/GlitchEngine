@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GLITCH // DESIGNER v9</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- WebM Muxer for Offline Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/webm-muxer@5.0.2/build/webm-muxer.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rubik+Glitch&family=Press+Start+2P&family=Audiowide&family=Chakra+Petch:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Chakra Petch', sans-serif;
+            overflow: hidden;
+        }
+        
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: #1a1a1a;
+            height: 4px;
+            border-radius: 2px;
+            width: 100%;
+            outline: none;
+            margin-top: 10px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #222;
+            border: 2px solid #00ff41;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: transform 0.1s, background 0.2s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+            background: #00ff41;
+        }
+
+        .cyber-button {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            color: #00ff41;
+            text-transform: uppercase;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(4px);
+        }
+        .cyber-button:hover {
+            border-color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+        }
+        .cyber-button:active {
+            background: #00ff41;
+            color: #000;
+        }
+        .cyber-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .rnd-checkbox {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #222;
+            border: 1px solid #444;
+            cursor: pointer;
+            display: inline-block;
+            position: relative;
+        }
+        .rnd-checkbox:checked {
+            background: #00ff41;
+            border-color: #00ff41;
+            box-shadow: 0 0 5px #00ff41;
+        }
+        
+        .filter-opt {
+            cursor: pointer;
+            border: 1px solid #333;
+            transition: all 0.2s;
+        }
+        .filter-radio:checked + .filter-opt {
+            border-color: #00ff41;
+            background: rgba(0, 255, 65, 0.1);
+            color: #fff;
+        }
+
+        #canvas-container {
+            background-image: 
+                linear-gradient(45deg, #0a0a0a 25%, transparent 25%), 
+                linear-gradient(-45deg, #0a0a0a 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #0a0a0a 75%), 
+                linear-gradient(-45deg, transparent 75%, #0a0a0a 75%);
+            background-size: 20px 20px;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen w-screen bg-black">
+
+    <!-- CANVAS AREA -->
+    <main class="relative w-full h-[45vh] md:h-full md:flex-1 flex items-center justify-center overflow-hidden order-1 md:order-2 border-b md:border-b-0 md:border-l border-gray-800" id="canvas-container">
+        
+        <canvas id="glitchCanvas" class="shadow-2xl max-w-full max-h-full object-contain" style="image-rendering: pixelated;"></canvas>
+
+        <!-- Floating Actions -->
+        <div class="absolute bottom-6 right-6 flex space-x-3 z-20">
+            <button type="button" onclick="rerollSeed()" class="cyber-button px-4 py-2 rounded-full shadow-lg border-green-500/50 hover:scale-105 transition-transform">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                New Seed
+            </button>
+        </div>
+
+        <!-- Render Overlay -->
+        <div id="renderOverlay" class="absolute inset-0 bg-black/90 z-50 flex flex-col items-center justify-center hidden backdrop-blur-sm">
+            <div class="w-64 mb-2 flex justify-between text-xs text-green-500 font-mono">
+                <span>RENDERING...</span>
+                <span id="renderPercent">0%</span>
+            </div>
+            <div class="w-64 h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+                <div id="renderProgress" class="h-full bg-green-500 progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="mt-4 text-[10px] text-gray-500 font-mono text-center">
+                GENERATING FRAMES<br>DO NOT CLOSE TAB
+            </div>
+        </div>
+    </main>
+
+    <!-- CONTROLS SIDEBAR -->
+    <aside class="w-full md:w-[400px] flex flex-col h-[55vh] md:h-full bg-[#080808] z-10 shadow-2xl order-2 md:order-1 border-r border-gray-900">
+        
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-black/90 backdrop-blur">
+            <h1 class="text-lg font-black tracking-tighter text-white italic">GLITCH <span class="text-green-500">ENGINE_v9</span></h1>
+            <div class="text-[10px] text-gray-500 font-mono text-right leading-tight">
+                OFFLINE_RENDER<br>
+                <span class="text-green-800">ACTIVE</span>
+            </div>
+        </div>
+
+        <!-- Scrollable Area -->
+        <div class="flex-1 overflow-y-auto p-5 space-y-6 pb-32" id="controlsContainer">
+            
+            <!-- Text Input -->
+            <div>
+                <label class="block text-[10px] text-green-500/70 mb-2 uppercase tracking-widest font-bold">Input Data</label>
+                <textarea id="textInput" class="w-full bg-[#111] border border-gray-800 p-3 text-white font-bold focus:outline-none focus:border-green-500 transition-colors h-14 resize-none rounded text-lg font-mono tracking-wider">PROTOCOL</textarea>
+            </div>
+
+            <!-- Animation Studio -->
+            <div class="border-l-2 border-green-500/30 pl-3 py-1 bg-green-900/5">
+                <label class="block text-[10px] text-green-400 mb-3 uppercase tracking-widest font-bold flex justify-between items-center">
+                    Animation Studio
+                    <label class="flex items-center cursor-pointer" title="Preview Live Animation">
+                        <span class="mr-2 text-[9px] text-gray-400">LIVE PREVIEW</span>
+                        <input type="checkbox" id="animToggle" class="sr-only" onchange="toggleAnimation(this.checked)">
+                        <div class="w-8 h-4 bg-gray-700 rounded-full relative">
+                            <div class="dot absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform transform" id="animDot"></div>
+                        </div>
+                    </label>
+                </label>
+                
+                <div class="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[10px] text-gray-400 font-bold">Speed (FPS)</label>
+                            <span id="fpsDisp" class="text-[10px] text-green-500 font-mono">24</span>
+                        </div>
+                        <input type="range" min="1" max="60" value="24" class="w-full" oninput="updateFPS(this.value)">
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-[10px] text-gray-400 font-bold">Duration (s)</label>
+                            <span id="durDisp" class="text-[10px] text-green-500 font-mono">3s</span>
+                        </div>
+                        <input type="range" min="1" max="10" value="3" class="w-full" oninput="updateDuration(this.value)">
+                    </div>
+                </div>
+                
+                <button type="button" id="renderBtn" onclick="renderVideoOffline()" class="w-full cyber-button py-2 text-[10px] rounded border-green-900/50 hover:bg-green-500 hover:text-black flex justify-center items-center gap-2 group">
+                    <div class="w-2 h-2 bg-green-500 rounded-full group-hover:bg-black"></div>
+                    Render Video (Smooth)
+                </button>
+            </div>
+
+            <!-- Filters Section -->
+            <div>
+                <label class="block text-[10px] text-gray-500 mb-3 uppercase tracking-widest font-bold">Post-Process</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <label class="relative">
+                        <input type="radio" name="filter" value="none" class="filter-radio sr-only" checked onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">RGB</div>
+                    </label>
+                    <label class="relative">
+                        <input type="radio" name="filter" value="noir" class="filter-radio sr-only" onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">NOIR</div>
+                    </label>
+                    <label class="relative">
+                        <input type="radio" name="filter" value="invert" class="filter-radio sr-only" onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">X-RAY</div>
+                    </label>
+                    <label class="relative">
+                        <input type="radio" name="filter" value="terminal" class="filter-radio sr-only" onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">TERM</div>
+                    </label>
+                    <label class="relative">
+                        <input type="radio" name="filter" value="crimson" class="filter-radio sr-only" onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">RED</div>
+                    </label>
+                    <label class="relative">
+                        <input type="radio" name="filter" value="vapor" class="filter-radio sr-only" onchange="updateFilter(this.value)">
+                        <div class="filter-opt text-[10px] text-center py-2 rounded bg-[#111] text-gray-400 font-mono">VAPOR</div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Dynamic Parameters injected here -->
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="p-4 border-t border-gray-800 bg-black grid grid-cols-3 gap-3 shrink-0">
+            <button type="button" onclick="randomizeSettings()" class="cyber-button py-3 text-xs rounded text-green-400 border-green-900 hover:bg-green-900/20 col-span-1">
+                Randomize
+            </button>
+            <button type="button" onclick="resetParams()" class="cyber-button py-3 text-xs rounded text-gray-400 border-gray-800 hover:border-gray-600 col-span-1">
+                Reset
+            </button>
+            <button type="button" onclick="downloadImage()" class="cyber-button py-3 text-xs rounded bg-green-900/20 border-green-900/50 hover:bg-green-500 hover:text-black col-span-1">
+                Save IMG
+            </button>
+        </div>
+    </aside>
+
+    <style>
+        #animToggle:checked ~ div .dot { transform: translateX(100%); background-color: #00ff41; }
+    </style>
+
+    <script>
+        class SeededRandom {
+            constructor(seed) {
+                this.initialSeed = seed;
+                this.seed = seed % 2147483647;
+                if (this.seed <= 0) this.seed += 2147483646;
+            }
+            next() { return (this.seed = this.seed * 16807 % 2147483647) / 2147483647; }
+            range(min, max) { return this.next() * (max - min) + min; }
+        }
+
+        // State
+        let currentSeed = Math.floor(Math.random() * 100000);
+        let activeFilter = 'none';
+        let isAnimating = false;
+        let animFPS = 24;
+        let recordDuration = 3;
+        let lastFrameTime = 0;
+        let animationFrameId = null;
+
+        const canvas = document.getElementById('glitchCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const bufferCanvas = document.createElement('canvas');
+        const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+        const container = document.getElementById('canvas-container');
+        const BASE_BUFFER_SCALE = 0.2; 
+        
+        const defaults = {
+            fontSize: 120, letterSpacing: 0, 
+            scale: 0.8, rotate: 0,
+            redX: 4, redY: 0, blueX: -4, blueY: 0,
+            sliceCount: 6, sliceHeight: 20, sliceOffset: 30,
+            noise: 15, blocks: 2,
+            brightness: 0, contrast: 0,
+            bgColor: '#000000', textColor: '#ffffff'
+        };
+
+        let params = { ...defaults };
+
+        const paramSchema = {
+            "Camera & Type": [
+                { id: 'scale', label: 'Zoom Level', min: 0.1, max: 6.0, step: 0.05 },
+                { id: 'rotate', label: 'Rotation', min: -45, max: 45, step: 1 },
+                { id: 'fontSize', label: 'Font Size', min: 40, max: 600, step: 5 },
+                { id: 'letterSpacing', label: 'Tracking', min: -20, max: 100, step: 1 },
+            ],
+            "Signal Split": [
+                { id: 'redX', label: 'Red Shift X', min: -50, max: 50, step: 1 },
+                { id: 'redY', label: 'Red Shift Y', min: -50, max: 50, step: 1 },
+                { id: 'blueX', label: 'Blue Shift X', min: -50, max: 50, step: 1 },
+                { id: 'blueY', label: 'Blue Shift Y', min: -50, max: 50, step: 1 },
+            ],
+            "Post FX": [
+                { id: 'brightness', label: 'Exposure', min: -100, max: 100, step: 5 },
+                { id: 'contrast', label: 'Contrast', min: -100, max: 100, step: 5 },
+            ],
+            "Corruption": [
+                { id: 'sliceCount', label: 'Tears', min: 0, max: 60, step: 1 },
+                { id: 'sliceOffset', label: 'Tear Force', min: 0, max: 200, step: 1 },
+                { id: 'sliceHeight', label: 'Tear Height', min: 1, max: 100, step: 1 },
+                { id: 'noise', label: 'Static Grain', min: 0, max: 100, step: 1 },
+                { id: 'blocks', label: 'Data Rot', min: 0, max: 30, step: 1 },
+            ],
+            "Palette": [
+                { id: 'textColor', label: 'Text', type: 'color' },
+                { id: 'bgColor', label: 'Background', type: 'color' }
+            ]
+        };
+
+        const fonts = ['Chakra Petch', 'Share Tech Mono', 'Rubik Glitch', 'Press Start 2P', 'Audiowide'];
+        let currentFont = 'Chakra Petch';
+
+        function init() {
+            buildControls();
+            const containerDiv = document.getElementById('controlsContainer');
+            const fontGroup = document.createElement('div');
+            fontGroup.innerHTML = `<div class="flex justify-between items-center mb-2"><label class="block text-[10px] text-green-500/70 uppercase tracking-widest font-bold">Typeface</label></div>`;
+            const select = document.createElement('select');
+            select.className = "w-full bg-[#111] border border-gray-800 text-white text-sm p-2 rounded focus:outline-none font-mono mb-6 cursor-pointer hover:border-green-500";
+            fonts.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f; opt.innerText = f;
+                select.appendChild(opt);
+            });
+            select.addEventListener('change', (e) => { currentFont = e.target.value; render(); });
+            fontGroup.appendChild(select);
+            containerDiv.insertBefore(fontGroup, containerDiv.children[2]);
+
+            window.addEventListener('resize', () => { resizeCanvas(); render(); });
+            document.getElementById('textInput').addEventListener('input', render);
+            
+            resizeCanvas();
+            render();
+            animateLoop(0);
+        }
+
+        function buildControls() {
+            const containerDiv = document.getElementById('controlsContainer');
+            
+            for (const [groupName, controls] of Object.entries(paramSchema)) {
+                const groupDiv = document.createElement('div');
+                const title = document.createElement('h3');
+                title.className = "text-[10px] text-gray-500 mb-2 mt-6 uppercase tracking-widest font-black";
+                title.innerText = groupName;
+                groupDiv.appendChild(title);
+
+                controls.forEach(ctrl => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = "mb-3";
+                    const labelFlex = document.createElement('div');
+                    labelFlex.className = "flex justify-between items-center mb-1";
+                    
+                    const leftSide = document.createElement('div');
+                    leftSide.className = "flex items-center space-x-2";
+                    const checkbox = document.createElement('input');
+                    checkbox.type = "checkbox";
+                    checkbox.className = "rnd-checkbox";
+                    checkbox.checked = true;
+                    checkbox.id = `rnd-${ctrl.id}`;
+                    checkbox.title = "Allow Randomization";
+                    const label = document.createElement('label');
+                    label.className = "text-[11px] text-gray-400 font-bold cursor-pointer hover:text-white transition-colors";
+                    label.innerText = ctrl.label;
+                    label.htmlFor = `rnd-${ctrl.id}`;
+                    leftSide.appendChild(checkbox);
+                    leftSide.appendChild(label);
+                    labelFlex.appendChild(leftSide);
+
+                    if (ctrl.type !== 'color') {
+                        const val = document.createElement('span');
+                        val.className = "text-[10px] text-green-500 font-mono";
+                        val.innerText = params[ctrl.id];
+                        val.id = `disp-${ctrl.id}`;
+                        labelFlex.appendChild(val);
+                    }
+                    wrapper.appendChild(labelFlex);
+
+                    const input = document.createElement('input');
+                    input.type = ctrl.type === 'color' ? 'color' : 'range';
+                    input.dataset.id = ctrl.id;
+                    if (ctrl.type !== 'color') {
+                        input.min = ctrl.min; input.max = ctrl.max; input.step = ctrl.step;
+                    } else {
+                        input.className = "w-full h-8 bg-[#111] border border-gray-800 cursor-pointer p-0.5 block mt-1 hover:border-green-500";
+                    }
+                    input.value = params[ctrl.id];
+                    input.addEventListener('input', (e) => {
+                        let val = e.target.value;
+                        if (ctrl.type !== 'color') {
+                            val = parseFloat(val);
+                            document.getElementById(`disp-${ctrl.id}`).innerText = val;
+                        }
+                        params[ctrl.id] = val;
+                        if (!isAnimating) render();
+                    });
+                    wrapper.appendChild(input);
+                    groupDiv.appendChild(wrapper);
+                });
+                containerDiv.appendChild(groupDiv);
+            }
+        }
+
+        // Animation Logic
+        function toggleAnimation(checked) {
+            isAnimating = checked;
+        }
+
+        function updateFPS(val) {
+            animFPS = parseInt(val);
+            document.getElementById('fpsDisp').innerText = animFPS;
+        }
+
+        function updateDuration(val) {
+            recordDuration = parseInt(val);
+            document.getElementById('durDisp').innerText = val + 's';
+        }
+
+        function animateLoop(time) {
+            requestAnimationFrame(animateLoop);
+            if (isAnimating) {
+                const interval = 1000 / animFPS;
+                if (time - lastFrameTime > interval) {
+                    lastFrameTime = time;
+                    rerollSeed();
+                }
+            }
+        }
+
+        /**
+         * OFFLINE RENDERER
+         * Uses webm-muxer and VideoEncoder to generate perfect frames
+         */
+        async function renderVideoOffline() {
+            if (!window.VideoEncoder || !window.WebMMuxer) {
+                alert("Your browser does not support modern video encoding (WebCodecs). Please use Chrome, Edge, or newer Safari.");
+                return;
+            }
+
+            const btn = document.getElementById('renderBtn');
+            const overlay = document.getElementById('renderOverlay');
+            const progBar = document.getElementById('renderProgress');
+            const progText = document.getElementById('renderPercent');
+            
+            // Freeze UI
+            isAnimating = false;
+            document.getElementById('animToggle').checked = false;
+            btn.disabled = true;
+            overlay.classList.remove('hidden');
+
+            // Setup
+            const width = canvas.width; // High DPI width
+            const height = canvas.height;
+            // Ensure even dimensions for some codecs
+            const vW = width % 2 === 0 ? width : width - 1;
+            const vH = height % 2 === 0 ? height : height - 1;
+
+            const totalFrames = animFPS * recordDuration;
+            
+            // Initialize Muxer
+            const muxer = new WebMMuxer.Muxer({
+                target: new WebMMuxer.ArrayBufferTarget(),
+                video: {
+                    codec: 'V_VP9',
+                    width: vW,
+                    height: vH,
+                    frameRate: animFPS
+                }
+            });
+
+            // Initialize Encoder
+            const encoder = new VideoEncoder({
+                output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+                error: (e) => console.error(e)
+            });
+
+            await encoder.configure({
+                codec: 'vp09.00.10.08',
+                width: vW,
+                height: vH,
+                bitrate: 10_000_000, // 10 Mbps for high quality
+                framerate: animFPS
+            });
+
+            // RENDER LOOP
+            for (let i = 0; i < totalFrames; i++) {
+                // 1. Generate new frame content
+                rerollSeed(); // This synchronously draws to canvas
+                
+                // 2. Create VideoFrame from canvas
+                // We wait for the draw to complete (it's sync in render(), but good to be safe)
+                const frame = new VideoFrame(canvas, {
+                    timestamp: i * 1000000 / animFPS, // microseconds
+                    duration: 1000000 / animFPS
+                });
+
+                // 3. Encode
+                encoder.encode(frame);
+                frame.close();
+
+                // 4. Update UI
+                const pct = Math.round((i / totalFrames) * 100);
+                progBar.style.width = `${pct}%`;
+                progText.innerText = `${pct}%`;
+
+                // Yield to UI thread so browser doesn't freeze
+                await new Promise(r => setTimeout(r, 0));
+            }
+
+            // Finish
+            await encoder.flush();
+            muxer.finalize();
+
+            // Download
+            const buffer = muxer.target.buffer;
+            const blob = new Blob([buffer], { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `GLITCH_RENDER_${Date.now()}.webm`;
+            a.click();
+
+            // Cleanup
+            overlay.classList.add('hidden');
+            btn.disabled = false;
+        }
+
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * 2; 
+            canvas.height = rect.height * 2;
+        }
+
+        function rerollSeed() {
+            currentSeed = Math.floor(Math.random() * 1000000);
+            render();
+        }
+
+        function randomizeSettings() {
+            // ... (Randomization logic same as before)
+            const rndInt = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+            const rndFloat = (min, max, step) => Math.round((Math.random() * (max - min) + min) / step) * step;
+            const rndColor = () => {
+                const h = Math.floor(Math.random() * 360);
+                return `hsl(${h}, 100%, 50%)`.replace(/hsl\((.*)\)/, (m, p1) => {
+                    const [h,s,l] = p1.split(',').map(x=>parseInt(x));
+                    return '#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+                });
+            };
+             for (const [groupName, controls] of Object.entries(paramSchema)) {
+                controls.forEach(ctrl => {
+                    const checkbox = document.getElementById(`rnd-${ctrl.id}`);
+                    if (!checkbox || !checkbox.checked) return;
+                    let newVal;
+                    if (ctrl.type === 'color') {
+                        newVal = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                        if(ctrl.id === 'bgColor' && Math.random() > 0.5) newVal = '#000000';
+                    } else {
+                        if (ctrl.id === 'sliceCount') newVal = rndInt(2, 25);
+                        else if (ctrl.id === 'scale') newVal = rndFloat(0.5, 3.0, 0.1);
+                        else if (ctrl.id === 'rotate') newVal = rndInt(-10, 10);
+                        else newVal = rndFloat(ctrl.min, ctrl.max, ctrl.step);
+                        if (ctrl.step < 1) newVal = parseFloat(newVal.toFixed(2));
+                    }
+                    params[ctrl.id] = newVal;
+                    const input = document.querySelector(`input[data-id="${ctrl.id}"]`);
+                    if(input) input.value = newVal;
+                    const disp = document.getElementById(`disp-${ctrl.id}`);
+                    if(disp) disp.innerText = newVal;
+                });
+            }
+            rerollSeed();
+        }
+
+        function resetParams() {
+            params = { ...defaults };
+            activeFilter = 'none';
+            document.querySelectorAll('input[name="filter"]').forEach(r => r.checked = (r.value === 'none'));
+            for (const key in params) {
+                const input = document.querySelector(`input[data-id="${key}"]`);
+                if(input) input.value = params[key];
+                const disp = document.getElementById(`disp-${key}`);
+                if(disp) disp.innerText = params[key];
+            }
+            render();
+        }
+
+        function updateFilter(val) { activeFilter = val; render(); }
+
+        function render() {
+            const rng = new SeededRandom(currentSeed);
+            const w = canvas.width; const h = canvas.height;
+            const text = document.getElementById('textInput').value || " ";
+            
+            // Buffer Rendering
+            bufferCanvas.width = w * 2; 
+            bufferCanvas.height = h * 2;
+            const bw = bufferCanvas.width; const bh = bufferCanvas.height;
+
+            bufferCtx.fillStyle = params.bgColor;
+            bufferCtx.fillRect(0, 0, bw, bh);
+
+            bufferCtx.save();
+            bufferCtx.translate(bw/2, bh/2);
+            bufferCtx.scale(BASE_BUFFER_SCALE, BASE_BUFFER_SCALE); 
+            
+            bufferCtx.font = `bold ${params.fontSize}px "${currentFont}"`;
+            bufferCtx.textAlign = 'center'; bufferCtx.textBaseline = 'middle';
+            bufferCtx.letterSpacing = `${params.letterSpacing}px`;
+
+            const isDark = (params.bgColor !== '#ffffff' && params.bgColor !== '#fff');
+            
+            if (params.redX !== 0 || params.redY !== 0) {
+                bufferCtx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
+                bufferCtx.fillStyle = isDark ? 'rgba(255,0,0,1)' : 'rgba(255,0,0,0.7)';
+                bufferCtx.fillText(text, params.redX, params.redY);
+            }
+            if (params.blueX !== 0 || params.blueY !== 0) {
+                bufferCtx.globalCompositeOperation = isDark ? 'screen' : 'multiply';
+                bufferCtx.fillStyle = isDark ? 'rgba(0,0,255,1)' : 'rgba(0,0,255,0.7)';
+                bufferCtx.fillText(text, params.blueX, params.blueY);
+            }
+            
+            bufferCtx.globalCompositeOperation = 'source-over';
+            bufferCtx.fillStyle = params.textColor;
+            bufferCtx.fillText(text, 0, 0);
+            bufferCtx.restore();
+
+            if (params.sliceCount > 0) {
+                for (let i = 0; i < params.sliceCount; i++) {
+                    const y = rng.range(0, bh);
+                    const height = rng.range(2, params.sliceHeight * 4);
+                    const offset = rng.range(-params.sliceOffset * 2, params.sliceOffset * 2);
+                    bufferCtx.drawImage(bufferCanvas, 0, y, bw, height, offset, y, bw, height);
+                }
+            }
+
+            if (params.blocks > 0) {
+                for(let i=0; i < params.blocks; i++) {
+                    const bx = rng.range(0, bw); const by = rng.range(0, bh);
+                    const bwidth = rng.range(50, 400); const bheight = rng.range(20, 150);
+                    bufferCtx.save(); bufferCtx.beginPath(); bufferCtx.rect(bx, by, bwidth, bheight); bufferCtx.clip();
+                    bufferCtx.globalCompositeOperation = 'difference';
+                    bufferCtx.fillStyle = '#ffffff'; bufferCtx.fillRect(bx, by, bwidth, bheight);
+                    bufferCtx.restore();
+                }
+            }
+
+            // Screen Rendering
+            ctx.clearRect(0,0,w,h);
+            ctx.fillStyle = params.bgColor; ctx.fillRect(0,0,w,h);
+            ctx.save();
+            ctx.translate(w/2, h/2);
+            const displayScale = (params.scale / BASE_BUFFER_SCALE) * 0.5;
+            ctx.scale(displayScale, displayScale);
+            ctx.rotate(params.rotate * Math.PI / 180);
+            ctx.imageSmoothingEnabled = false; 
+            ctx.drawImage(bufferCanvas, -bw/2, -bh/2);
+            ctx.restore();
+
+            if (params.noise > 0) {
+                ctx.fillStyle = `rgba(255,255,255, ${params.noise / 300})`;
+                const count = (w * h) / 1000 * (params.noise / 5); 
+                for(let i=0; i < count; i++) {
+                    const x = rng.range(0, w); const y = rng.range(0, h);
+                    ctx.fillRect(x, y, 2, 2);
+                }
+            }
+
+            applyPostProcessing(w, h);
+        }
+
+        function applyPostProcessing(w, h) {
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+            const c = params.contrast * 2.55;
+            const factor = (259 * (c + 255)) / (255 * (259 - c));
+            const b = params.brightness;
+
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i]; let g = data[i+1]; let bVal = data[i+2];
+                r += b; g += b; bVal += b;
+                r = factor * (r - 128) + 128;
+                g = factor * (g - 128) + 128;
+                bVal = factor * (bVal - 128) + 128;
+
+                if (activeFilter === 'noir') {
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * bVal;
+                    r = (gray - 128) * 1.2 + 128; g = r; bVal = r;
+                } else if (activeFilter === 'invert') {
+                    r = 255 - r; g = 255 - g; bVal = 255 - bVal;
+                } else if (activeFilter === 'terminal') {
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * bVal;
+                    r = 0; g = gray; bVal = 0;
+                } else if (activeFilter === 'crimson') {
+                    const gray = 0.299 * r + 0.587 * g + 0.114 * bVal;
+                    r = gray; g = 0; bVal = 0;
+                } else if (activeFilter === 'vapor') {
+                    const oldR = r; r = bVal; bVal = oldR; g = g * 0.8;
+                }
+                data[i] = Math.max(0, Math.min(255, r));
+                data[i+1] = Math.max(0, Math.min(255, g));
+                data[i+2] = Math.max(0, Math.min(255, bVal));
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function downloadImage() {
+            try {
+                const link = document.createElement('a');
+                link.download = `GLITCH_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) { alert("Error: " + e.message); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
